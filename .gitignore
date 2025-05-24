@@ -1,0 +1,26 @@
+# Dependency directories 
+**/node_modules/
+
+# Build output 
+**/dist/
+**/out/
+**/build/
+
+# Log files
+logs
+*.log
+npm-debug.log*
+
+# Operating System generated files 
+.DS_Store
+Thumbs.db
+
+# Environment variables files 
+.env
+.env.*
+!.env.example 
+
+# Editor directories and files 
+.vscode/*
+!.vscode/extensions.json 
+.idea/ # Jetbrains IDEs
