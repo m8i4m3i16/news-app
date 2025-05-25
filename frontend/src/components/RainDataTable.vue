@@ -220,13 +220,10 @@ onMounted(async () => {
   }
 })
 
-// test
 const getCsrfToken = async (): Promise<string | null> => {
   try {
-    // 確保你的 axios 實例或全局配置了 withCredentials: true
-    // 如果沒有全局配置，可以在這裡單獨配置
     const response = await axios.get('http://localhost:3001/api/csrf-token', {
-      withCredentials: true, // 非常重要！允許跨域請求攜帶和設置 cookie
+      withCredentials: true,
     })
     return response.data.csrfToken
   } catch (error) {
@@ -236,13 +233,10 @@ const getCsrfToken = async (): Promise<string | null> => {
   }
 }
 
-// 假設的提交數據函數
 const handlePostSomething = async () => {
   const csrfToken = await getCsrfToken()
 
-  if (!csrfToken) {
-    return // 獲取 token 失敗，不繼續
-  }
+  if (!csrfToken) return
 
   const dataToSubmit = {
     message: 'Hello from Vue frontend!',
@@ -253,9 +247,9 @@ const handlePostSomething = async () => {
     console.log('準備發送 POST 請求，CSRF Token:', csrfToken)
     const response = await axios.post('http://localhost:3001/api/submit-something', dataToSubmit, {
       headers: {
-        'X-CSRF-Token': csrfToken, // 將 CSRF token 放在請求頭
+        'X-CSRF-Token': csrfToken,
       },
-      withCredentials: true, // 非常重要！
+      withCredentials: true,
     })
     console.log('POST 請求成功:', response.data)
     alert(`提交成功: ${response.data.message}`)
