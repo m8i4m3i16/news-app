@@ -1,5 +1,15 @@
 <template>
   <div class="rain-data-container">
+    <!-- TEST -->
+    <!-- <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee">
+      <n-h3>CSRF 保護測試</n-h3>
+      <n-button type="primary" @click="handlePostSomething"> 發送受保護的 POST 請求 </n-button>
+      <p style="font-size: 0.9em; color: #777; margin-top: 10px">
+        點擊此按鈕將嘗試向 <code>/api/submit-something</code> 發送 POST 請求。<br />
+        請打開瀏覽器開發者工具的 Network 和 Console 標籤頁查看請求過程和結果。
+      </p>
+    </div> -->
+    <!-- TEST END -->
     <div class="header-section">
       <n-h2 align-text type="info">臺北市即時雨量站資料</n-h2>
       <div class="font-size-control">
@@ -115,7 +125,7 @@ const createColumns = (): DataTableColumns<RainStation> => [
     width: 150,
   },
   {
-    title: '目前雨量 (mm)',
+    title: '雨量值(mm)',
     key: 'rain',
     sorter: 'default',
     align: 'center',
@@ -193,7 +203,6 @@ onMounted(async () => {
   } else {
     document.documentElement.style.setProperty('--base-font-size', '16px')
   }
-
   try {
     loading.value = true
     error.value = null
@@ -210,6 +219,51 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+// test
+const getCsrfToken = async (): Promise<string | null> => {
+  try {
+    // 確保你的 axios 實例或全局配置了 withCredentials: true
+    // 如果沒有全局配置，可以在這裡單獨配置
+    const response = await axios.get('http://localhost:3001/api/csrf-token', {
+      withCredentials: true, // 非常重要！允許跨域請求攜帶和設置 cookie
+    })
+    return response.data.csrfToken
+  } catch (error) {
+    console.error('獲取 CSRF token 失敗:', error)
+    alert('獲取 CSRF token 失敗，請檢查後端服務和網路。')
+    return null
+  }
+}
+
+// 假設的提交數據函數
+const handlePostSomething = async () => {
+  const csrfToken = await getCsrfToken()
+
+  if (!csrfToken) {
+    return // 獲取 token 失敗，不繼續
+  }
+
+  const dataToSubmit = {
+    message: 'Hello from Vue frontend!',
+    timestamp: new Date().toISOString(),
+  }
+
+  try {
+    console.log('準備發送 POST 請求，CSRF Token:', csrfToken)
+    const response = await axios.post('http://localhost:3001/api/submit-something', dataToSubmit, {
+      headers: {
+        'X-CSRF-Token': csrfToken, // 將 CSRF token 放在請求頭
+      },
+      withCredentials: true, // 非常重要！
+    })
+    console.log('POST 請求成功:', response.data)
+    alert(`提交成功: ${response.data.message}`)
+  } catch (error: any) {
+    console.error('POST 請求失敗:', error.response?.data || error.message)
+    alert(`提交失敗: ${error.response?.data?.message || '請檢查控制台獲取更多信息。'}`)
+  }
+}
 </script>
 
 <style scoped>

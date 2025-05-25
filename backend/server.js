@@ -2,12 +2,35 @@ require("dotenv").config();
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
+const session = require("express-session");
+const csrf = require("csurf");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const corsOptions = {
+  origin: ["http://localhost:5173", "http://your-frontend-deployment-url.com"],
+  credentials: true,
+};
 
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
+app.use(
+  session({
+    secret:
+      process.env.SESSION_SECRET || "a-very-strong-secret-key-for-session",
+    resave: false,
+    saveUninitialized: true, // 可設 false，如果不想為未修改的 session 創建記錄
+    cookie: {
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000,
+    },
+  })
+);
+const csrfProtection = csrf({ cookie: true });
 
 app.get("/api/rain-data", async (req, res) => {
   try {
@@ -58,7 +81,27 @@ app.get("/api/rain-data", async (req, res) => {
   }
 });
 
+app.get("/api/csrf-token", csrfProtection, (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
+
+app.post("/api/submit-something", csrfProtection, (req, res) => {
+  console.log("Received data:", req.body);
+  res
+    .status(200)
+    .json({ message: "Data received successfully (CSRF Protected)" });
+});
+
 app.get("/", (req, res) => res.send("Backend server is running!"));
+
+app.use((err, req, res, next) => {
+  if (err.code === "EBADCSRFTOKEN") {
+    console.warn("CSRF Token Error:", err.message);
+    res.status(403).json({ message: "Invalid CSRF token. Forbidden." });
+  } else {
+    next(err);
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`Backend server listening on http://localhost:${PORT}`);
