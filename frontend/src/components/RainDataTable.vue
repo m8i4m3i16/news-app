@@ -14,16 +14,26 @@
       <n-h2 align-text type="info">臺北市即時雨量站資料</n-h2>
       <div class="font-size-control">
         <n-button-group>
-          <n-button size="small" @click="decreaseFontSize" :disabled="fontSize <= 12">
-            <template #icon>
-              <n-icon><remove-outline /></n-icon>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button size="small" @click="decreaseFontSize" :disabled="fontSize <= 12">
+                <template #icon>
+                  <n-icon><remove-outline /></n-icon>
+                </template>
+              </n-button>
             </template>
-          </n-button>
-          <n-button size="small" @click="increaseFontSize" :disabled="fontSize >= 24">
-            <template #icon>
-              <n-icon><add-outline /></n-icon>
+            縮小字體
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-button size="small" @click="increaseFontSize" :disabled="fontSize >= 24">
+                <template #icon>
+                  <n-icon><add-outline /></n-icon>
+                </template>
+              </n-button>
             </template>
-          </n-button>
+            放大字體
+          </n-tooltip>
         </n-button-group>
       </div>
     </div>
@@ -82,6 +92,7 @@ import {
   NIcon,
   NButton,
   NButtonGroup,
+  NTooltip,
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { SearchOutline, RemoveOutline, AddOutline } from '@vicons/ionicons5'
@@ -131,12 +142,24 @@ const createColumns = (): DataTableColumns<RainStation> => [
     align: 'center',
     width: 180,
     render(row) {
+      let color = 'inherit' // default black for < 3mm
+      if (row.rain >= 10) {
+        color = 'purple'
+      } else if (row.rain >= 7) {
+        color = 'red'
+      } else if (row.rain >= 5) {
+        color = 'yellow'
+      } else if (row.rain >= 4) {
+        color = 'green'
+      } else if (row.rain >= 3) {
+        color = 'blue'
+      }
       return h(
         'span',
         {
           style: {
-            color: row.rain > 4 ? 'red' : row.rain > 3 ? 'orange' : 'inherit',
-            fontWeight: row.rain > 4 ? 'bold' : 'normal',
+            color: color,
+            fontWeight: row.rain >= 2 ? 'bold' : 'normal',
           },
         },
         row.rain.toFixed(1),
@@ -264,7 +287,6 @@ const handlePostSomething = async () => {
 .rain-data-container {
   margin: 20px auto;
   padding: 20px;
-  max-width: 1240px;
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
@@ -280,15 +302,6 @@ const handlePostSomething = async () => {
 .font-size-control {
   display: flex;
   align-items: center;
-}
-@media (max-width: 768px) {
-  .rain-data-container {
-    margin: 10px;
-    padding: 10px;
-    max-width: 100%;
-    border-radius: 0;
-    box-shadow: none;
-  }
 }
 :deep(.n-h2) {
   font-size: calc(var(--base-font-size) * 1.5);
@@ -312,11 +325,12 @@ const handlePostSomething = async () => {
 :deep(.n-data-table-th__title) {
   font-weight: 600;
 }
-:deep(.n-data-table:not(.n-data-table--single-line) .n-data-table-td) {
-  border-right: none;
-}
+:deep(.n-data-table:not(.n-data-table--single-line) .n-data-table-td),
 :deep(.n-data-table:not(.n-data-table--single-line) .n-data-table-th) {
   border-right: none;
+}
+:deep(.n-data-table.n-data-table--bottom-bordered .n-data-table-td.n-data-table-td--last-row) {
+  border-bottom: none;
 }
 :deep(.n-data-table .n-data-table-th .n-data-table-sorter .n-base-icon) {
   left: -5px;
