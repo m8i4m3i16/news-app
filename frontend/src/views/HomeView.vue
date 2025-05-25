@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import TheWelcome from '../components/TheWelcome.vue'
+import RainDataTable from '../components/RainDataTable.vue'
 </script>
 
 <template>
   <main>
-    <TheWelcome />
+    <RainDataTable />
   </main>
 </template>
