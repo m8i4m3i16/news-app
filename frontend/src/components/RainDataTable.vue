@@ -1,6 +1,22 @@
 <template>
   <div class="rain-data-container">
-    <n-h2 align-text type="info">臺北市即時雨量站資料</n-h2>
+    <div class="header-section">
+      <n-h2 align-text type="info">臺北市即時雨量站資料</n-h2>
+      <div class="font-size-control">
+        <n-button-group>
+          <n-button size="small" @click="decreaseFontSize" :disabled="fontSize <= 12">
+            <template #icon>
+              <n-icon><remove-outline /></n-icon>
+            </template>
+          </n-button>
+          <n-button size="small" @click="increaseFontSize" :disabled="fontSize >= 24">
+            <template #icon>
+              <n-icon><add-outline /></n-icon>
+            </template>
+          </n-button>
+        </n-button-group>
+      </div>
+    </div>
     <!-- Search -->
     <n-input
       v-model="searchKeyword"
@@ -46,9 +62,19 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, h } from 'vue'
 import axios from 'axios'
-import { NSpin, NDataTable, NEmpty, NAlert, NH2, NInput, NIcon } from 'naive-ui'
+import {
+  NSpin,
+  NDataTable,
+  NEmpty,
+  NAlert,
+  NH2,
+  NInput,
+  NIcon,
+  NButton,
+  NButtonGroup,
+} from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
-import { SearchOutline } from '@vicons/ionicons5'
+import { SearchOutline, RemoveOutline, AddOutline } from '@vicons/ionicons5'
 import { useDebounceFn } from '@vueuse/core'
 
 interface RainStation {
@@ -62,6 +88,7 @@ const allRainStations = ref<RainStation[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 const searchKeyword = ref('')
+const fontSize = ref(16)
 
 const formatRecTime = (recTimeString: string): string => {
   if (!recTimeString || recTimeString.length !== 12) return 'N/A'
@@ -77,7 +104,6 @@ const createColumns = (): DataTableColumns<RainStation> => [
   {
     title: '測站編號',
     key: 'stationNo',
-    // sorter: 'default',
     align: 'left',
     titleAlign: 'left',
     width: 120,
@@ -85,7 +111,6 @@ const createColumns = (): DataTableColumns<RainStation> => [
   {
     title: '測站名稱',
     key: 'stationName',
-    // sorter: 'default',
     align: 'center',
     width: 150,
   },
@@ -143,7 +168,32 @@ const filteredStations = computed(() => {
   )
 })
 
+// font size control
+const increaseFontSize = () => {
+  if (fontSize.value < 24) {
+    fontSize.value += 2
+    localStorage.setItem('fontSize', fontSize.value.toString())
+    document.documentElement.style.setProperty('--base-font-size', `${fontSize.value}px`)
+  }
+}
+
+const decreaseFontSize = () => {
+  if (fontSize.value > 12) {
+    fontSize.value -= 2
+    localStorage.setItem('fontSize', fontSize.value.toString())
+    document.documentElement.style.setProperty('--base-font-size', `${fontSize.value}px`)
+  }
+}
+
 onMounted(async () => {
+  const savedFontSize = localStorage.getItem('fontSize')
+  if (savedFontSize) {
+    fontSize.value = parseInt(savedFontSize)
+    document.documentElement.style.setProperty('--base-font-size', `${fontSize.value}px`)
+  } else {
+    document.documentElement.style.setProperty('--base-font-size', '16px')
+  }
+
   try {
     loading.value = true
     error.value = null
@@ -171,15 +221,45 @@ onMounted(async () => {
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
   box-sizing: border-box;
+  font-size: var(--base-font-size);
+}
+.header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+.font-size-control {
+  display: flex;
+  align-items: center;
 }
 @media (max-width: 768px) {
   .rain-data-container {
-    margin: 10px; /* 手機版邊距小一點 */
-    padding: 10px; /* 手機版內邊距也小一點 */
-    max-width: 100%; /* 佔滿螢幕寬度 */
-    border-radius: 0; /* 手機版可以考慮無圓角或小圓角 */
-    box-shadow: none; /* 手機版可以考慮去掉陰影，更簡潔 */
+    margin: 10px;
+    padding: 10px;
+    max-width: 100%;
+    border-radius: 0;
+    box-shadow: none;
   }
+}
+:deep(.n-h2) {
+  font-size: calc(var(--base-font-size) * 1.5);
+  margin-top: 15px;
+}
+:deep(.n-data-table) {
+  font-size: var(--base-font-size);
+}
+:deep(.n-input) {
+  font-size: var(--base-font-size);
+}
+:deep(.n-button) {
+  font-size: var(--base-font-size);
+}
+:deep(.n-empty) {
+  font-size: var(--base-font-size);
+}
+:deep(.n-alert) {
+  font-size: var(--base-font-size);
 }
 :deep(.n-data-table-th__title) {
   font-weight: 600;
@@ -191,7 +271,7 @@ onMounted(async () => {
   border-right: none;
 }
 :deep(.n-data-table .n-data-table-th .n-data-table-sorter .n-base-icon) {
-  left: -40px;
+  left: -5px;
 }
 :deep(.custom-table-lines .n-data-table__pagination) {
   display: flex;

@@ -9,6 +9,12 @@ import { NConfigProvider } from 'naive-ui'
   </n-config-provider>
 </template>
 
+<style>
+:root {
+  --base-font-size: 16px;
+}
+</style>
+
 <style scoped>
 /* @media (max-width: 1024px) {
 } */
