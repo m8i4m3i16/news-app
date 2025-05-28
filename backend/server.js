@@ -12,6 +12,7 @@ const corsOptions = {
   origin: ["http://localhost:5173", "http://your-frontend-deployment-url.com"],
   credentials: true,
 };
+const path = require("path");
 
 app.use(cors(corsOptions));
 app.use(express.json());
@@ -90,6 +91,18 @@ app.post("/api/submit-something", csrfProtection, (req, res) => {
   res
     .status(200)
     .json({ message: "Data received successfully (CSRF Protected)" });
+});
+
+// 1. 提供前端靜態文件服務
+//    Express 會在 /app/public 目錄 (相對於 Docker 容器的 /app 目錄) 中查找靜態文件
+//    這個 'public' 目錄是在 Dockerfile 中通過 COPY --from=build-stage /app/frontend/dist ./public 創建的
+app.use(express.static(path.join(__dirname, "..", "public")));
+// 2. 處理 SPA (Single Page Application) 路由回退
+//    對於所有未被前面 API 路由匹配到的 GET 請求，都返回 public/index.html
+//    這樣 Vue Router 就能在前端處理路由了
+//    這一行必須放在所有 API 路由定義之後！
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "..", "public", "index.html"));
 });
 
 app.get("/", (req, res) => res.send("Backend server is running!"));
