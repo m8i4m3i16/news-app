@@ -17,9 +17,7 @@
           <n-tooltip trigger="hover">
             <template #trigger>
               <n-button size="small" @click="decreaseFontSize" :disabled="fontSize <= 12">
-                <template #icon>
-                  <n-icon><remove-outline /></n-icon>
-                </template>
+                <template #icon> - </template>
               </n-button>
             </template>
             縮小字體
@@ -27,9 +25,7 @@
           <n-tooltip trigger="hover">
             <template #trigger>
               <n-button size="small" @click="increaseFontSize" :disabled="fontSize >= 24">
-                <template #icon>
-                  <n-icon><add-outline /></n-icon>
-                </template>
+                <template #icon> + </template>
               </n-button>
             </template>
             放大字體
@@ -79,7 +75,8 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script lang="ts">
+import { defineComponent } from 'vue'
 import { ref, onMounted, computed, h } from 'vue'
 import axios from 'axios'
 import {
@@ -97,6 +94,7 @@ import {
 import type { DataTableColumns } from 'naive-ui'
 import { SearchOutline, RemoveOutline, AddOutline } from '@vicons/ionicons5'
 import { useDebounceFn } from '@vueuse/core'
+import apiClient from '../services/axiosInstance'
 
 interface RainStation {
   stationNo: string
@@ -105,182 +103,224 @@ interface RainStation {
   rain: number
 }
 
-const allRainStations = ref<RainStation[]>([])
-const loading = ref(true)
-const error = ref<string | null>(null)
-const searchKeyword = ref('')
-const fontSize = ref(16)
-
-const formatRecTime = (recTimeString: string): string => {
-  if (!recTimeString || recTimeString.length !== 12) return 'N/A'
-  const year = recTimeString.substring(0, 4)
-  const month = recTimeString.substring(4, 6)
-  const day = recTimeString.substring(6, 8)
-  const hour = recTimeString.substring(8, 10)
-  const minute = recTimeString.substring(10, 12)
-  return `${year}/${month}/${day} ${hour}:${minute}`
-}
-
-const createColumns = (): DataTableColumns<RainStation> => [
-  {
-    title: '測站編號',
-    key: 'stationNo',
-    align: 'left',
-    titleAlign: 'left',
-    width: 120,
+export default defineComponent({
+  name: 'RainDataTable',
+  components: {
+    NSpin,
+    NDataTable,
+    NEmpty,
+    NAlert,
+    NH2,
+    NInput,
+    NIcon,
+    NButton,
+    NButtonGroup,
+    NTooltip,
   },
-  {
-    title: '測站名稱',
-    key: 'stationName',
-    align: 'center',
-    width: 150,
-  },
-  {
-    title: '雨量值(mm)',
-    key: 'rain',
-    sorter: 'default',
-    align: 'center',
-    width: 180,
-    render(row) {
-      let color = 'inherit' // default black for < 3mm
-      if (row.rain >= 10) {
-        color = 'purple'
-      } else if (row.rain >= 7) {
-        color = 'red'
-      } else if (row.rain >= 5) {
-        color = 'yellow'
-      } else if (row.rain >= 4) {
-        color = 'green'
-      } else if (row.rain >= 3) {
-        color = 'blue'
-      }
-      return h(
-        'span',
-        {
-          style: {
-            color: color,
-            fontWeight: row.rain >= 2 ? 'bold' : 'normal',
-          },
-        },
-        row.rain.toFixed(1),
-      )
-    },
-  },
-  {
-    title: '記錄時間',
-    key: 'recTime',
-    sorter: (rowA, rowB) =>
-      new Date(formatRecTime(rowA.recTime)).getTime() -
-      new Date(formatRecTime(rowB.recTime)).getTime(),
-    render(row) {
-      return formatRecTime(row.recTime)
-    },
-    align: 'center',
-    width: 180,
-  },
-]
+  setup() {
+    const allRainStations = ref<RainStation[]>([])
+    const loading = ref(true)
+    const error = ref<string | null>(null)
+    const searchKeyword = ref('')
+    const fontSize = ref(16)
 
-const columns = createColumns()
-
-const pagination = ref({
-  pageSize: 10,
-})
-
-// search
-const debouncedSearch = useDebounceFn((value: string) => {
-  searchKeyword.value = value
-}, 300)
-
-const filteredStations = computed(() => {
-  if (!searchKeyword.value) return allRainStations.value
-  const keyword = searchKeyword.value.toLowerCase().trim()
-  return allRainStations.value.filter(
-    (station) =>
-      station.stationName.toLowerCase().includes(keyword) ||
-      station.stationNo.toLowerCase().includes(keyword),
-  )
-})
-
-// font size control
-const increaseFontSize = () => {
-  if (fontSize.value < 24) {
-    fontSize.value += 2
-    localStorage.setItem('fontSize', fontSize.value.toString())
-    document.documentElement.style.setProperty('--base-font-size', `${fontSize.value}px`)
-  }
-}
-
-const decreaseFontSize = () => {
-  if (fontSize.value > 12) {
-    fontSize.value -= 2
-    localStorage.setItem('fontSize', fontSize.value.toString())
-    document.documentElement.style.setProperty('--base-font-size', `${fontSize.value}px`)
-  }
-}
-
-onMounted(async () => {
-  const savedFontSize = localStorage.getItem('fontSize')
-  if (savedFontSize) {
-    fontSize.value = parseInt(savedFontSize)
-    document.documentElement.style.setProperty('--base-font-size', `${fontSize.value}px`)
-  } else {
-    document.documentElement.style.setProperty('--base-font-size', '16px')
-  }
-  try {
-    loading.value = true
-    error.value = null
-    const response = await axios.get<RainStation[]>('http://localhost:3001/api/rain-data')
-    allRainStations.value = response.data
-  } catch (e: any) {
-    console.error('獲取雨量資料失敗:', e)
-    if (axios.isAxiosError(e)) {
-      error.value = e.response?.data?.message || e.message || '獲取資料失敗 (Axios Error)。'
-    } else {
-      error.value = e.message || '獲取資料失敗，請稍後再試。'
+    const formatRecTime = (recTimeString: string): string => {
+      if (!recTimeString || recTimeString.length !== 12) return 'N/A'
+      const year = recTimeString.substring(0, 4)
+      const month = recTimeString.substring(4, 6)
+      const day = recTimeString.substring(6, 8)
+      const hour = recTimeString.substring(8, 10)
+      const minute = recTimeString.substring(10, 12)
+      return `${year}/${month}/${day} ${hour}:${minute}`
     }
-  } finally {
-    loading.value = false
-  }
-})
 
-const getCsrfToken = async (): Promise<string | null> => {
-  try {
-    const response = await axios.get('http://localhost:3001/api/csrf-token', {
-      withCredentials: true,
-    })
-    return response.data.csrfToken
-  } catch (error) {
-    console.error('獲取 CSRF token 失敗:', error)
-    alert('獲取 CSRF token 失敗，請檢查後端服務和網路。')
-    return null
-  }
-}
-
-const handlePostSomething = async () => {
-  const csrfToken = await getCsrfToken()
-
-  if (!csrfToken) return
-
-  const dataToSubmit = {
-    message: 'Hello from Vue frontend!',
-    timestamp: new Date().toISOString(),
-  }
-
-  try {
-    console.log('準備發送 POST 請求，CSRF Token:', csrfToken)
-    const response = await axios.post('http://localhost:3001/api/submit-something', dataToSubmit, {
-      headers: {
-        'X-CSRF-Token': csrfToken,
+    const createColumns = (): DataTableColumns<RainStation> => [
+      {
+        title: '測站編號',
+        key: 'stationNo',
+        align: 'left',
+        titleAlign: 'left',
+        width: 120,
       },
-      withCredentials: true,
+      {
+        title: '測站名稱',
+        key: 'stationName',
+        align: 'center',
+        width: 150,
+      },
+      {
+        title: '雨量值(mm)',
+        key: 'rain',
+        sorter: 'default',
+        align: 'center',
+        width: 180,
+        render(row) {
+          let color = 'inherit' // default black for < 3mm
+          if (row.rain >= 10) {
+            color = 'purple'
+          } else if (row.rain >= 7) {
+            color = 'red'
+          } else if (row.rain >= 5) {
+            color = 'yellow'
+          } else if (row.rain >= 4) {
+            color = 'green'
+          } else if (row.rain >= 3) {
+            color = 'blue'
+          }
+          return h(
+            'span',
+            {
+              style: {
+                color: color,
+                fontWeight: row.rain >= 2 ? 'bold' : 'normal',
+              },
+            },
+            row.rain.toFixed(1),
+          )
+        },
+      },
+      {
+        title: '記錄時間',
+        key: 'recTime',
+        sorter: (rowA, rowB) =>
+          new Date(formatRecTime(rowA.recTime)).getTime() -
+          new Date(formatRecTime(rowB.recTime)).getTime(),
+        render(row) {
+          return formatRecTime(row.recTime)
+        },
+        align: 'center',
+        width: 180,
+      },
+    ]
+
+    const columns = createColumns()
+
+    const pagination = ref({
+      pageSize: 10,
     })
-    console.log('POST 請求成功:', response.data)
-    alert(`提交成功: ${response.data.message}`)
-  } catch (error: any) {
-    console.error('POST 請求失敗:', error.response?.data || error.message)
-    alert(`提交失敗: ${error.response?.data?.message || '請檢查控制台獲取更多信息。'}`)
-  }
-}
+
+    // search
+    const debouncedSearch = useDebounceFn((value: string) => {
+      searchKeyword.value = value
+    }, 300)
+
+    const filteredStations = computed(() => {
+      if (!searchKeyword.value) return allRainStations.value
+      const keyword = searchKeyword.value.toLowerCase().trim()
+      return allRainStations.value.filter(
+        (station) =>
+          station.stationName.toLowerCase().includes(keyword) ||
+          station.stationNo.toLowerCase().includes(keyword),
+      )
+    })
+
+    // font size control
+    const increaseFontSize = () => {
+      if (fontSize.value < 24) {
+        fontSize.value += 2
+        localStorage.setItem('fontSize', fontSize.value.toString())
+        document.documentElement.style.setProperty('--base-font-size', `${fontSize.value}px`)
+      }
+    }
+
+    const decreaseFontSize = () => {
+      if (fontSize.value > 12) {
+        fontSize.value -= 2
+        localStorage.setItem('fontSize', fontSize.value.toString())
+        document.documentElement.style.setProperty('--base-font-size', `${fontSize.value}px`)
+      }
+    }
+
+    onMounted(async () => {
+      const savedFontSize = localStorage.getItem('fontSize')
+      if (savedFontSize) {
+        fontSize.value = parseInt(savedFontSize)
+        document.documentElement.style.setProperty('--base-font-size', `${fontSize.value}px`)
+      } else {
+        document.documentElement.style.setProperty('--base-font-size', '16px')
+      }
+      try {
+        loading.value = true
+        error.value = null
+        const response = await apiClient.get<RainStation[]>('/api/rain-data')
+        // const response = await axios.get<RainStation[]>('http://localhost:3001/api/rain-data')
+        allRainStations.value = response.data
+      } catch (e: any) {
+        console.error('獲取雨量資料失敗:', e)
+        if (axios.isAxiosError(e)) {
+          error.value = e.response?.data?.message || e.message || '獲取資料失敗 (Axios Error)。'
+        } else {
+          error.value = e.message || '獲取資料失敗，請稍後再試。'
+        }
+      } finally {
+        loading.value = false
+      }
+    })
+
+    const getCsrfToken = async (): Promise<string | null> => {
+      try {
+        const response = await apiClient.get('/api/csrf-token')
+        // const response = await axios.get('http://localhost:3001/api/csrf-token', {
+        //   withCredentials: true,
+        // })
+        return response.data.csrfToken
+      } catch (error) {
+        console.error('獲取 CSRF token 失敗:', error)
+        alert('獲取 CSRF token 失敗，請檢查後端服務和網路。')
+        return null
+      }
+    }
+
+    const handlePostSomething = async () => {
+      const csrfToken = await getCsrfToken()
+
+      if (!csrfToken) return
+
+      const dataToSubmit = {
+        message: 'Hello from Vue frontend!',
+        timestamp: new Date().toISOString(),
+      }
+
+      try {
+        console.log('準備發送 POST 請求，CSRF Token:', csrfToken)
+        const response = await apiClient.post('/api/submit-something', dataToSubmit, {
+          headers: {
+            'X-CSRF-Token': csrfToken,
+          },
+        })
+        // const response = await axios.post('http://localhost:3001/api/submit-something', dataToSubmit, {
+        //   headers: {
+        //     'X-CSRF-Token': csrfToken,
+        //   },
+        //   withCredentials: true,
+        // })
+        console.log('POST 請求成功:', response.data)
+        alert(`提交成功: ${response.data.message}`)
+      } catch (error: any) {
+        console.error('POST 請求失敗:', error.response?.data || error.message)
+        alert(`提交失敗: ${error.response?.data?.message || '請檢查控制台獲取更多信息。'}`)
+      }
+    }
+
+    return {
+      allRainStations,
+      loading,
+      error,
+      searchKeyword,
+      fontSize,
+      columns,
+      pagination,
+      filteredStations,
+      increaseFontSize,
+      decreaseFontSize,
+      debouncedSearch,
+      SearchOutline,
+      RemoveOutline,
+      AddOutline,
+      handlePostSomething,
+    }
+  },
+})
 </script>
 
 <style scoped>

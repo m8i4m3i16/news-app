@@ -1,19 +1,21 @@
 require("dotenv").config();
+
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const session = require("express-session");
 const csrf = require("csurf");
-
-const app = express();
-const PORT = process.env.PORT || 3001;
-const corsOptions = {
-  origin: ["http://localhost:5173", "http://your-frontend-deployment-url.com"],
-  credentials: true,
-};
 const path = require("path");
 
+const app = express();
+const PORT = process.env.PORT || 8080;
+const corsOptions = {
+  origin: ["http://localhost:5173", "http://localhost:3000"],
+  credentials: true,
+};
+
+// --- Middleware Setup ---
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -21,9 +23,9 @@ app.use(cookieParser());
 app.use(
   session({
     secret:
-      process.env.SESSION_SECRET || "a-very-strong-secret-key-for-session",
+      process.env.SESSION_SECRET || "a-very-strong-secret-key-for-session-dev",
     resave: false,
-    saveUninitialized: true, // 可設 false，如果不想為未修改的 session 創建記錄
+    saveUninitialized: true,
     cookie: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
@@ -33,6 +35,7 @@ app.use(
 );
 const csrfProtection = csrf({ cookie: true });
 
+// --- API Routes ---
 app.get("/api/rain-data", async (req, res) => {
   try {
     const apiUrl =
@@ -93,20 +96,36 @@ app.post("/api/submit-something", csrfProtection, (req, res) => {
     .json({ message: "Data received successfully (CSRF Protected)" });
 });
 
-// 1. 提供前端靜態文件服務
-//    Express 會在 /app/public 目錄 (相對於 Docker 容器的 /app 目錄) 中查找靜態文件
-//    這個 'public' 目錄是在 Dockerfile 中通過 COPY --from=build-stage /app/frontend/dist ./public 創建的
+// --- Static Files Serving ---
 app.use(express.static(path.join(__dirname, "..", "public")));
-// 2. 處理 SPA (Single Page Application) 路由回退
-//    對於所有未被前面 API 路由匹配到的 GET 請求，都返回 public/index.html
-//    這樣 Vue Router 就能在前端處理路由了
-//    這一行必須放在所有 API 路由定義之後！
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "..", "public", "index.html"));
+
+// --- SPA Fallback Route ---
+app.use((req, res, next) => {
+  if (req.method === "GET" && !req.path.startsWith("/api/")) {
+    const indexPath = path.join(__dirname, "..", "public", "index.html");
+    console.log(
+      `SPA Fallback: Attempting to serve index.html from ${indexPath} for ${req.path}`
+    );
+    res.sendFile(indexPath, (err) => {
+      if (err) {
+        console.error(`Error sending file ${indexPath}:`, err);
+        // res.status(err.status || 500).end(); // 或者 next(err)
+        if (process.env.NODE_ENV !== "production_docker") {
+          console.warn(
+            `[DEV MODE] index.html not found at ${indexPath}, this is expected if frontend is not built into backend's public dir.`
+          );
+          return next();
+        } else {
+          next(err);
+        }
+      }
+    });
+  } else {
+    next();
+  }
 });
 
-app.get("/", (req, res) => res.send("Backend server is running!"));
-
+// --- Error Handling Middlewares ---
 app.use((err, req, res, next) => {
   if (err.code === "EBADCSRFTOKEN") {
     console.warn("CSRF Token Error:", err.message);
